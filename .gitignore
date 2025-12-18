@@ -2,58 +2,86 @@
 # 🔐 Ansible Secrets & Sensitive Files
 ############################################
 
-# Ansible Vault files (encrypted or not)
+# Ansible Vault password files
+.vault_pass.txt
+*.vault_pass
+*.vault-password
+
+# Encrypted / unencrypted vault files
 **/vault.yml
 **/vault.yaml
 **/vault_*.yml
 **/vault_*.yaml
+vault/secrets.yml
 
 # SSH private keys (NEVER COMMIT)
 **/ssh/id_rsa
+**/ssh/id_ed25519
 **/ssh/*.pem
 **/ssh/*.key
 
-# Optional: ignore public keys if you want
-# **/ssh/id_rsa.pub
+# Optional: ignore public keys if desired
+# **/ssh/*.pub
 
 
 ############################################
-# ⚙️ Ansible Runtime Files
+# ⚙️ Ansible Runtime & Execution Artifacts
 ############################################
 
 # Retry files
 *.retry
 
-# Ansible collections cache
+# Fact cache
+.facts/
+**/.facts/
+
+# Ansible collections & cache
 .ansible/
 collections/
 roles/*/.galaxy_install_info
+
+# Ansible logs (if enabled)
+ansible.log
 
 
 ############################################
 # 🐳 Docker / Docker Compose
 ############################################
 
-# Docker runtime artifacts
+# Docker Compose overrides
 docker-compose.override.yml
+
+# Docker runtime logs
 *.log
 
-# Docker build cache (if generated locally)
+# Docker local cache / volumes (if generated)
 **/.docker/
 **/docker-data/
+**/docker-volumes/
+
+# Docker build artifacts
+**/*.tar
 
 
 ############################################
 # 🐍 Python
 ############################################
 
+# Bytecode
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
+
+# Virtual environments
 .env
+.env.*
 .venv
 venv/
+ENV/
+
+# Python packaging
+pip-wheel-metadata/
 
 
 ############################################
@@ -74,14 +102,26 @@ desktop.ini
 
 # VS Code
 .vscode/
+.vscode-server/
 
 # IntelliJ / PyCharm
 .idea/
+*.iml
+
 
 ############################################
-# 📦 Misc
+# 📦 CI / Misc
 ############################################
+
+# Jenkins / CI artifacts
+workspace/
+build/
+dist/
 
 # Backup files
 *.bak
 *.old
+
+# Temporary files
+tmp/
+temp/
