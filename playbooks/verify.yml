@@ -1,25 +1,67 @@
+---
+# =============================================================================
+# Verify Playbook – Docker-based Ansible Lab
+# =============================================================================
+# Purpose:
+#   - Validate services and configuration after site.yml execution
+#   - Container-safe verification (no systemd, no sudo)
+# =============================================================================
+
 - name: Verify all nodes
   hosts: all
-  become: true
   gather_facts: false
+  become: false
+
   tasks:
-    - name: Verify nginx port listening (if nginx enabled)
-      ansible.builtin.shell: "ss -lntp | grep -E ':{{ nginx_port }}\\b' || true"
-      register: listen_check
+    # --------------------------------------------------
+    # Verify NGINX process (container-safe)
+    # --------------------------------------------------
+    - name: Check if nginx process is running
+      ansible.builtin.shell: "pgrep nginx"
+      register: nginx_proc
       changed_when: false
+      failed_when: false
       when: nginx_enable | bool
 
-    - name: Show listening output
-      ansible.builtin.debug:
-        var: listen_check.stdout_lines
+    - name: Fail if nginx process is not running
+      ansible.builtin.fail:
+        msg: "❌ NGINX process is NOT running on {{ inventory_hostname }}"
+      when:
+        - nginx_enable | bool
+        - nginx_proc.rc != 0
+
+    # --------------------------------------------------
+    # Verify NGINX HTTP response
+    # --------------------------------------------------
+    - name: Check nginx HTTP response
+      ansible.builtin.shell: >
+        curl -s -o /dev/null -w "%{http_code}"
+        http://127.0.0.1:{{ nginx_port }}
+      register: nginx_http
+      changed_when: false
+      failed_when: nginx_http.stdout != "200"
       when: nginx_enable | bool
 
-    - name: Verify app config exists
+    # --------------------------------------------------
+    # Verify application configuration
+    # --------------------------------------------------
+    - name: Check application config exists
       ansible.builtin.stat:
         path: "{{ app_base_dir }}/app.conf"
       register: app_conf
 
-    - name: Fail if config missing
+    - name: Fail if application config is missing
       ansible.builtin.fail:
-        msg: "Missing {{ app_base_dir }}/app.conf"
+        msg: "❌ Missing {{ app_base_dir }}/app.conf on {{ inventory_hostname }}"
       when: not app_conf.stat.exists
+
+    # --------------------------------------------------
+    # Success summary (nice output)
+    # --------------------------------------------------
+    - name: Verification summary
+      ansible.builtin.debug:
+        msg:
+          host: "{{ inventory_hostname }}"
+          nginx_enabled: "{{ nginx_enable | default(false) }}"
+          nginx_running: "{{ nginx_proc.rc == 0 if nginx_enable else 'N/A' }}"
+          app_config_present: "{{ app_conf.stat.exists }}"

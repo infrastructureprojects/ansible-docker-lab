@@ -1,0 +1,5 @@
+env_name: prod
+app_user: produser
+nginx_enable: true
+nginx_listen_port: 8080
+app_base_dir: /opt/app

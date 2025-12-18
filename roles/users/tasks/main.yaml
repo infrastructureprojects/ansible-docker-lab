@@ -1,11 +1,66 @@
-- name: Ensure ssh_user exists (base)
-  ansible.builtin.user:
-    name: "{{ ssh_user }}"
-    shell: "{{ users_shell }}"
-    create_home: "{{ users_create_home }}"
+---
+# =============================================================================
+# Role: users
+# -----------------------------------------------------------------------------
+# Purpose:
+#   - Validate environment-specific OS users inside managed containers
+#   - Ensure users required for application ownership already exist
+#
+# Design Principles:
+#   - Users are CREATED at Docker image build time (Dockerfile)
+#   - Ansible DOES NOT create or modify OS users in containers
+#   - No sudo / no become (Ansible connects as root)
+#   - Fail fast if expected users are missing
+# =============================================================================
 
-- name: Ensure passwordless sudo for ssh_user
-  ansible.builtin.lineinfile:
-    path: /etc/sudoers
-    line: "{{ ssh_user }} ALL=(ALL) NOPASSWD:ALL"
-    validate: "visudo -cf %s"
+- name: Validate environment user variable is defined
+  ansible.builtin.assert:
+    that:
+      - app_user is defined
+      - app_user | length > 0
+    fail_msg: >
+      app_user is not defined.
+      Ensure it is set in group_vars (dev/sit/uat/prod).
+    success_msg: "Environment user '{{ app_user }}' is defined."
+
+- name: Verify environment user exists in container
+  ansible.builtin.command: "id {{ app_user }}"
+  register: user_check
+  changed_when: false
+
+- name: Debug environment user details
+  ansible.builtin.debug:
+    msg:
+      user: "{{ app_user }}"
+      uid: "{{ user_check.stdout.split()[0] }}"
+      host: "{{ inventory_hostname }}"
+
+# -----------------------------------------------------------------------------
+# Optional: Validate home directory exists
+# -----------------------------------------------------------------------------
+- name: Verify home directory exists for environment user
+  ansible.builtin.stat:
+    path: "/home/{{ app_user }}"
+  register: user_home
+
+- name: Fail if home directory is missing
+  ansible.builtin.fail:
+    msg: >
+      Home directory /home/{{ app_user }} does not exist on
+      {{ inventory_hostname }}. Docker image may be misconfigured.
+  when: not user_home.stat.exists
+
+# -----------------------------------------------------------------------------
+# Optional: Validate SSH directory (used by bootstrap_ssh.sh)
+# -----------------------------------------------------------------------------
+- name: Verify .ssh directory exists for environment user
+  ansible.builtin.stat:
+    path: "/home/{{ app_user }}/.ssh"
+  register: ssh_dir
+
+- name: Warn if SSH directory is missing
+  ansible.builtin.debug:
+    msg: >
+      WARNING: /home/{{ app_user }}/.ssh does not exist yet on
+      {{ inventory_hostname }}. It will be created during SSH bootstrap.
+  when: not ssh_dir.stat.exists

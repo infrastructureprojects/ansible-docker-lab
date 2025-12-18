@@ -1,3 +1,8 @@
+---
+# =============================================================================
+# NGINX Role – Container-safe
+# =============================================================================
+
 - name: Install nginx
   ansible.builtin.apt:
     name: nginx
@@ -10,8 +15,19 @@
     src: default.conf.j2
     dest: "{{ nginx_conf_path }}"
     mode: "0644"
-  notify:
-    - nginx reload (container)
+  notify: nginx reload (container)
+  when: nginx_enable | bool
+
+- name: Ensure nginx runtime directories exist (container-safe)
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: www-data
+    group: www-data
+    mode: "0755"
+  loop:
+    - /run/nginx
+    - /var/log/nginx
   when: nginx_enable | bool
 
 - name: Start nginx if not running (no systemd)
@@ -21,11 +37,14 @@
   args:
     executable: /bin/bash
   changed_when: false
+  failed_when: false
   when: nginx_enable | bool
 
 - name: Validate nginx is responding locally
-  ansible.builtin.shell: "curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:{{ nginx_listen_port }}"
+  ansible.builtin.shell: >
+    curl -s -o /dev/null -w "%{http_code}"
+    http://127.0.0.1:{{ nginx_port }}
   register: nginx_http
   changed_when: false
-  failed_when: nginx_http.stdout not in ['200']
+  failed_when: nginx_http.stdout != "200"
   when: nginx_enable | bool

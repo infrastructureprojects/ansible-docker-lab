@@ -1,3 +1,0 @@
-env_name: uat
-nginx_port: 8083
-packages_extra: []

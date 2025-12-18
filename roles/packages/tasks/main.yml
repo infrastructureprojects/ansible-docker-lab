@@ -1,5 +1,10 @@
 - name: Install baseline packages
+  become: true
   ansible.builtin.apt:
-    name: "{{ packages_common + (packages_extra | default([])) }}"
+    name:
+      - curl
+      - vim
+      - git
+      - ca-certificates
     state: present
     update_cache: true

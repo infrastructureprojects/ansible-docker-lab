@@ -17,7 +17,7 @@ services:
     stdin_open: true
     volumes:
       - ./:/lab
-      - ansible_ssh:/root/.ssh
+      - ansible_ssh:/home/ansible/.ssh
     networks:
       - ansible-net
     depends_on:
@@ -33,6 +33,9 @@ services:
     build:
       context: .
       dockerfile: docker/nodes/Dockerfile
+      args:
+        NODE_USER: devuser
+        NODE_PASSWORD: ${DEV_NODE_PASSWORD}
     container_name: dev-node
     hostname: dev-node
     networks:
@@ -48,6 +51,9 @@ services:
     build:
       context: .
       dockerfile: docker/nodes/Dockerfile
+      args:
+        NODE_USER: situser
+        NODE_PASSWORD: ${SIT_NODE_PASSWORD}
     container_name: sit-node
     hostname: sit-node
     networks:
@@ -63,6 +69,9 @@ services:
     build:
       context: .
       dockerfile: docker/nodes/Dockerfile
+      args:
+        NODE_USER: uatuser
+        NODE_PASSWORD: ${UAT_NODE_PASSWORD}
     container_name: uat-node
     hostname: uat-node
     networks:
@@ -78,6 +87,9 @@ services:
     build:
       context: .
       dockerfile: docker/nodes/Dockerfile
+      args:
+        NODE_USER: produser
+        NODE_PASSWORD: ${PROD_NODE_PASSWORD}
     container_name: prod-node
     hostname: prod-node
     networks:
@@ -85,16 +97,6 @@ services:
     expose:
       - "22"
       - "8080"
-
-    # ------------------------------------------------------------------------
-    # OPTIONAL (Advanced):
-    # Enable ONLY if you want to experiment with dockerd inside container
-    # Requires docker_try_start_daemon=true in Ansible
-    # ------------------------------------------------------------------------
-    # privileged: true
-    # volumes:
-    #   - /var/lib/docker
-    #   - /sys/fs/cgroup:/sys/fs/cgroup:rw
 
 # --------------------------------------------------------------------------
 # Volumes

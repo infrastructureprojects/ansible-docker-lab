@@ -1,26 +1,76 @@
-- name: Ansible Lab - Container Nodes (No systemd)
-  hosts: all
-  become: true
-  gather_facts: true
+---
+# =============================================================================
+# Ansible Lab – Container Nodes (Docker-based)
+# =============================================================================
+# Design Principles:
+#   - Managed nodes are Docker containers
+#   - Ansible connects as root (no sudo / no become)
+#   - Environment-specific users are pre-created via Docker ARGs
+#   - Roles confirm & configure, NOT create OS users
+# =============================================================================
 
+- name: Ansible Lab - Container Nodes
+  hosts: all
+  gather_facts: true
+  become: false
+
+  # ---------------------------------------------------------------------------
+  # Pre-Tasks: Environment & Container Detection
+  # ---------------------------------------------------------------------------
   pre_tasks:
     - name: Show facts (container detection)
       ansible.builtin.debug:
         msg:
           host: "{{ inventory_hostname }}"
-          virtualization_type: "{{ ansible_virtualization_type | default('unknown') }}"
-          env: "{{ env_name | default('na') }}"
-          container_mode: "{{ container_mode }}"
+          environment: "{{ env_name | default('na') }}"
+          app_user: "{{ app_user | default('na') }}"
+          virtualization_type: >-
+            {{
+              ansible_facts.virtualization_type
+                if 'virtualization_type' in ansible_facts
+                else 'unknown'
+            }}
+          container_hint: >-
+            {{
+              'docker'
+              if ansible_facts.virtualization_type is defined
+              and ansible_facts.virtualization_type == 'docker'
+              else 'non-docker'
+            }}
 
+  # ---------------------------------------------------------------------------
+  # Roles Execution
+  # ---------------------------------------------------------------------------
   roles:
-    - users
-    - common
-    - packages
-    - users_extended
-    - filesystem
-    - nginx
-    - docker
-    - app_config
-    - cron_jobs
-    - monitoring_agent
-    - validation
+    - role: users
+      tags: [users]
+
+    - role: common
+      tags: [common]
+
+    - role: packages
+      tags: [packages]
+
+    - role: users_extended
+      tags: [users_extended]
+
+    - role: filesystem
+      tags: [filesystem]
+
+    - role: nginx
+      tags: [nginx]
+
+    - role: docker
+      tags: [docker]
+
+    - role: app_config
+      tags: [app_config]
+
+    - role: cron_jobs
+      tags: [cron]
+
+    - role: monitoring_agent
+      tags: [monitoring]
+
+    - role: validation
+      tags: [validation]

@@ -1,3 +1,0 @@
-env_name: prod
-nginx_port: 8080
-packages_extra: []

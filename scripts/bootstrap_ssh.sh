@@ -1,50 +1,50 @@
 #!/usr/bin/env bash
 # ============================================================================
 # 🔐 Bootstrap Passwordless SSH for Ansible Lab (Docker Containers)
-# ----------------------------------------------------------------------------
-# Purpose:
-#   - Generate SSH keypair on ansible-master (if not present)
-#   - Copy public key into dev / sit / uat / prod containers
-#   - Enable passwordless SSH for Ansible automation
-#
-# Designed for:
-#   - Docker-based target nodes
-#   - No systemd
-#   - CI/CD safe
 # ============================================================================
 
 set -euo pipefail
 
 # ----------------------------------------------------------------------------
-# Configuration
+# Load environment variables safely
 # ----------------------------------------------------------------------------
-SSH_USER="${SSH_USER:-ansible}"
-SSH_PASSWORD="${SSH_PASSWORD:-ansible}"   # initial bootstrap only
-SSH_KEY_DIR="/root/.ssh"
+if [[ ! -f .env ]]; then
+  echo "[ERROR] .env file not found. Aborting."
+  exit 1
+fi
+
+source .env
+
+# ----------------------------------------------------------------------------
+# SSH key configuration (NON-ROOT ansible-master)
+# ----------------------------------------------------------------------------
+SSH_KEY_DIR="${HOME}/.ssh"
 SSH_KEY="${SSH_KEY_DIR}/id_rsa"
 SSH_PUB="${SSH_KEY}.pub"
 
+# ----------------------------------------------------------------------------
+# Environment-specific node:user:password mapping
+# ----------------------------------------------------------------------------
 NODES=(
-  "dev-node"
-  "sit-node"
-  "uat-node"
-  "prod-node"
+  "dev-node:devuser:${DEV_NODE_PASSWORD}"
+  "sit-node:situser:${SIT_NODE_PASSWORD}"
+  "uat-node:uatuser:${UAT_NODE_PASSWORD}"
+  "prod-node:produser:${PROD_NODE_PASSWORD}"
 )
 
 # ----------------------------------------------------------------------------
 # Logging helpers
 # ----------------------------------------------------------------------------
 log()  { echo -e "\033[1;32m[INFO]\033[0m $*"; }
-warn() { echo -e "\033[1;33m[WARN]\033[0m $*"; }
 err()  { echo -e "\033[1;31m[ERROR]\033[0m $*"; }
 
 # ----------------------------------------------------------------------------
-# Ensure sshpass exists (required for first-time password auth)
+# Ensure sshpass exists
 # ----------------------------------------------------------------------------
 if ! command -v sshpass >/dev/null 2>&1; then
   log "Installing sshpass..."
-  apt-get update -y >/dev/null
-  apt-get install -y sshpass >/dev/null
+  sudo apt-get update -y >/dev/null
+  sudo apt-get install -y sshpass >/dev/null
 fi
 
 # ----------------------------------------------------------------------------
@@ -64,46 +64,51 @@ fi
 PUBKEY_CONTENT="$(cat "${SSH_PUB}")"
 
 # ----------------------------------------------------------------------------
-# Copy public key to all nodes
+# Copy public key to each environment node & user
 # ----------------------------------------------------------------------------
-for NODE in "${NODES[@]}"; do
-  log "Bootstrapping SSH access to ${NODE}..."
+for ENTRY in "${NODES[@]}"; do
+  IFS=":" read -r HOST USER PASS <<< "${ENTRY}"
 
-  sshpass -p "${SSH_PASSWORD}" ssh \
+  log "Bootstrapping SSH access to ${USER}@${HOST}..."
+
+  sshpass -p "${PASS}" ssh \
+    -o PreferredAuthentications=password \
+    -o PubkeyAuthentication=no \
     -o StrictHostKeyChecking=no \
     -o UserKnownHostsFile=/dev/null \
-    "${SSH_USER}@${NODE}" bash <<EOF
+    "${USER}@${HOST}" bash <<EOF
 set -e
 
-# Create .ssh directory
-mkdir -p /home/${SSH_USER}/.ssh
-chmod 700 /home/${SSH_USER}/.ssh
+SSH_DIR="/home/${USER}/.ssh"
 
-# Create authorized_keys
-touch /home/${SSH_USER}/.ssh/authorized_keys
-chmod 600 /home/${SSH_USER}/.ssh/authorized_keys
+mkdir -p "\${SSH_DIR}"
+chmod 700 "\${SSH_DIR}"
 
-# Add public key if not present
-grep -qxF '${PUBKEY_CONTENT}' /home/${SSH_USER}/.ssh/authorized_keys || \
-  echo '${PUBKEY_CONTENT}' >> /home/${SSH_USER}/.ssh/authorized_keys
+touch "\${SSH_DIR}/authorized_keys"
+chmod 600 "\${SSH_DIR}/authorized_keys"
 
-# Fix ownership
-chown -R ${SSH_USER}:${SSH_USER} /home/${SSH_USER}/.ssh
+grep -qxF '${PUBKEY_CONTENT}' "\${SSH_DIR}/authorized_keys" || \
+  echo '${PUBKEY_CONTENT}' >> "\${SSH_DIR}/authorized_keys"
+
+chown -R ${USER}:${USER} "\${SSH_DIR}"
 EOF
 
-  log "Passwordless SSH configured for ${NODE}"
+  log "Passwordless SSH configured for ${USER}@${HOST}"
 done
 
 # ----------------------------------------------------------------------------
-# Final validation
+# Final validation (key-based only)
 # ----------------------------------------------------------------------------
 log "Validating passwordless SSH connectivity..."
 
-for NODE in "${NODES[@]}"; do
-  ssh -o StrictHostKeyChecking=no \
+for ENTRY in "${NODES[@]}"; do
+  IFS=":" read -r HOST USER _ <<< "${ENTRY}"
+
+  ssh -o BatchMode=yes \
+      -o StrictHostKeyChecking=no \
       -o UserKnownHostsFile=/dev/null \
-      "${SSH_USER}@${NODE}" "echo SSH OK from \$(hostname)" \
-      || err "SSH validation failed for ${NODE}"
+      "${USER}@${HOST}" "echo SSH OK from \$(hostname) as \$(whoami)" \
+    || err "SSH validation failed for ${USER}@${HOST}"
 done
 
-log "🎉 SSH bootstrap completed successfully for all nodes!"
+log "🎉 SSH bootstrap completed successfully for all environment nodes!"

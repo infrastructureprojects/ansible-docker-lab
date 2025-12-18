@@ -1,16 +1,16 @@
 # =============================================================================
-# Ansible Master (Control Node)
+# Ansible Master (Control Node) - Non-Root Runtime
 # -----------------------------------------------------------------------------
 # Purpose:
 #   - Run Ansible playbooks
-#   - Manage SSH keys
+#   - Manage SSH keys as non-root user
 #   - Execute automation against Docker container nodes
 #   - Support plugins, vault, facts caching, collections
 #
 # Notes:
 #   - NO systemd
 #   - CI/CD safe
-#   - Production-aligned
+#   - Runtime user: ansible (non-root)
 # =============================================================================
 
 FROM ubuntu:22.04
@@ -23,14 +23,13 @@ ENV LANG=C.UTF-8
 ENV LC_ALL=C.UTF-8
 
 # -----------------------------------------------------------------------------
-# Install OS packages
+# Install OS packages (root only at build time)
 # -----------------------------------------------------------------------------
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     python3-pip \
     python3-venv \
     openssh-client \
-    openssh-server \
     sshpass \
     rsync \
     git \
@@ -46,10 +45,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     cron \
     unzip \
     jq \
+    sudo \
     && rm -rf /var/lib/apt/lists/*
 
 # -----------------------------------------------------------------------------
-# Install Ansible (pip-based for consistency)
+# Install Ansible (pip-based)
 # -----------------------------------------------------------------------------
 RUN python3 -m pip install --no-cache-dir --upgrade pip && \
     pip3 install --no-cache-dir \
@@ -61,11 +61,20 @@ RUN python3 -m pip install --no-cache-dir --upgrade pip && \
       cryptography
 
 # -----------------------------------------------------------------------------
-# Prepare SSH (client side only)
+# Create ansible user (NON-ROOT runtime user)
 # -----------------------------------------------------------------------------
-RUN mkdir -p /root/.ssh && \
-    chmod 700 /root/.ssh && \
-    echo "StrictHostKeyChecking no" > /root/.ssh/config
+RUN useradd -m -s /bin/bash ansible && \
+    echo "ansible ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/ansible && \
+    chmod 0440 /etc/sudoers.d/ansible
+
+# -----------------------------------------------------------------------------
+# Prepare SSH (ansible user)
+# -----------------------------------------------------------------------------
+RUN mkdir -p /home/ansible/.ssh && \
+    chmod 700 /home/ansible/.ssh && \
+    echo "StrictHostKeyChecking no" > /home/ansible/.ssh/config && \
+    echo "UserKnownHostsFile=/dev/null" >> /home/ansible/.ssh/config && \
+    chown -R ansible:ansible /home/ansible/.ssh
 
 # -----------------------------------------------------------------------------
 # Workspace
@@ -73,26 +82,36 @@ RUN mkdir -p /root/.ssh && \
 WORKDIR /lab
 
 # -----------------------------------------------------------------------------
-# Copy entire lab (playbooks, roles, inventory, plugins, scripts)
+# Copy entire lab
 # -----------------------------------------------------------------------------
 COPY . /lab
 
 # -----------------------------------------------------------------------------
-# Ensure script permissions
+# Fix ownership & permissions
 # -----------------------------------------------------------------------------
-RUN chmod +x /lab/scripts/bootstrap_ssh.sh || true
+RUN chown -R ansible:ansible /lab && \
+    chmod +x /lab/scripts/bootstrap_ssh.sh || true && \
+    chmod +x /lab/scripts/generate_vault_password.py || true
 
 # -----------------------------------------------------------------------------
-# Ansible defaults (facts cache directory)
+# Ansible defaults (facts cache)
 # -----------------------------------------------------------------------------
-RUN mkdir -p /lab/.facts && chmod 755 /lab/.facts
+RUN mkdir -p /lab/.facts && \
+    chown -R ansible:ansible /lab/.facts && \
+    chmod 755 /lab/.facts
 
 # -----------------------------------------------------------------------------
-# Verify installation (build-time sanity checks)
+# Build-time sanity checks
 # -----------------------------------------------------------------------------
 RUN ansible --version && \
+    ansible-lint --version && \
     python3 --version && \
     ssh -V
+
+# -----------------------------------------------------------------------------
+# Switch to NON-ROOT user (FINAL)
+# -----------------------------------------------------------------------------
+USER ansible
 
 # -----------------------------------------------------------------------------
 # Default shell
