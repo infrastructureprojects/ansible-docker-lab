@@ -1,0 +1,48 @@
+services:
+  ansible-master:
+    build:
+      context: ./ansible
+      args:
+        APP_USER: ansible
+    container_name: ansible-master
+    environment:
+      APP_USER: ansible
+    volumes:
+      - ./ansible:/home/ansible/ansible
+    tty: true
+
+  dev:
+    build:
+      context: ./ansible/nodes
+      args:
+        APP_USER: devusr
+    container_name: dev
+    ports:
+      - "2222:22"
+
+  sit:
+    build:
+      context: ./ansible/nodes
+      args:
+        APP_USER: situsr
+    container_name: sit
+    ports:
+      - "2223:22"
+
+  uat:
+    build:
+      context: ./ansible/nodes
+      args:
+        APP_USER: uatusr
+    container_name: uat
+    ports:
+      - "2224:22"
+
+  prod:
+    build:
+      context: ./ansible/nodes
+      args:
+        APP_USER: produsr
+    container_name: prod
+    ports:
+      - "2225:22"

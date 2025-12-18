@@ -1,0 +1,87 @@
+############################################
+# 🔐 Ansible Secrets & Sensitive Files
+############################################
+
+# Ansible Vault files (encrypted or not)
+**/vault.yml
+**/vault.yaml
+**/vault_*.yml
+**/vault_*.yaml
+
+# SSH private keys (NEVER COMMIT)
+**/ssh/id_rsa
+**/ssh/*.pem
+**/ssh/*.key
+
+# Optional: ignore public keys if you want
+# **/ssh/id_rsa.pub
+
+
+############################################
+# ⚙️ Ansible Runtime Files
+############################################
+
+# Retry files
+*.retry
+
+# Ansible collections cache
+.ansible/
+collections/
+roles/*/.galaxy_install_info
+
+
+############################################
+# 🐳 Docker / Docker Compose
+############################################
+
+# Docker runtime artifacts
+docker-compose.override.yml
+*.log
+
+# Docker build cache (if generated locally)
+**/.docker/
+**/docker-data/
+
+
+############################################
+# 🐍 Python
+############################################
+
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+.venv
+venv/
+
+
+############################################
+# 🖥 OS / Editor / IDE
+############################################
+
+# Linux
+*~
+*.swp
+*.swo
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+desktop.ini
+
+# VS Code
+.vscode/
+
+# IntelliJ / PyCharm
+.idea/
+
+############################################
+# 📦 Misc
+############################################
+
+# Backup files
+*.bak
+*.old
