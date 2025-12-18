@@ -1,0 +1,34 @@
+- name: Install docker client packages (safe for containers)
+  ansible.builtin.apt:
+    name:
+      - docker.io
+    state: present
+    update_cache: true
+  when: docker_enable | bool
+
+- name: Show docker version (cli)
+  ansible.builtin.command: docker --version
+  register: docker_ver
+  changed_when: false
+  when: docker_enable | bool
+
+- name: Print docker cli version
+  ansible.builtin.debug:
+    msg: "{{ docker_ver.stdout }}"
+  when: docker_enable | bool
+
+# Optional daemon start - only works if container is privileged + has needed mounts
+- name: Try start dockerd (optional)
+  ansible.builtin.shell: |
+    pgrep dockerd >/dev/null 2>&1 && exit 0
+    nohup dockerd >/var/log/dockerd.log 2>&1 &
+    sleep 2
+    pgrep dockerd >/dev/null 2>&1
+  args:
+    executable: /bin/bash
+  register: dockerd_start
+  changed_when: false
+  failed_when: false
+  when:
+    - docker_enable | bool
+    - docker_try_start_daemon | bool

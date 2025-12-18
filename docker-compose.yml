@@ -1,48 +1,105 @@
+version: "3.9"
+
+networks:
+  ansible-net:
+    driver: bridge
+
 services:
+
+  # --------------------------------------------------------------------------
+  # Ansible Control Node
+  # --------------------------------------------------------------------------
   ansible-master:
     build:
-      context: ./ansible
-      args:
-        APP_USER: ansible
+      context: .
+      dockerfile: docker/ansible-master/Dockerfile
     container_name: ansible-master
-    environment:
-      APP_USER: ansible
-    volumes:
-      - ./ansible:/home/ansible/ansible
+    hostname: ansible-master
     tty: true
+    stdin_open: true
+    volumes:
+      - ./:/lab
+      - ansible_ssh:/root/.ssh
+    networks:
+      - ansible-net
+    depends_on:
+      - dev-node
+      - sit-node
+      - uat-node
+      - prod-node
 
-  dev:
+  # --------------------------------------------------------------------------
+  # DEV Node
+  # --------------------------------------------------------------------------
+  dev-node:
     build:
-      context: ./ansible/nodes
-      args:
-        APP_USER: devusr
-    container_name: dev
-    ports:
-      - "2222:22"
+      context: .
+      dockerfile: docker/nodes/Dockerfile
+    container_name: dev-node
+    hostname: dev-node
+    networks:
+      - ansible-net
+    expose:
+      - "22"
+      - "8081"
 
-  sit:
+  # --------------------------------------------------------------------------
+  # SIT Node
+  # --------------------------------------------------------------------------
+  sit-node:
     build:
-      context: ./ansible/nodes
-      args:
-        APP_USER: situsr
-    container_name: sit
-    ports:
-      - "2223:22"
+      context: .
+      dockerfile: docker/nodes/Dockerfile
+    container_name: sit-node
+    hostname: sit-node
+    networks:
+      - ansible-net
+    expose:
+      - "22"
+      - "8082"
 
-  uat:
+  # --------------------------------------------------------------------------
+  # UAT Node
+  # --------------------------------------------------------------------------
+  uat-node:
     build:
-      context: ./ansible/nodes
-      args:
-        APP_USER: uatusr
-    container_name: uat
-    ports:
-      - "2224:22"
+      context: .
+      dockerfile: docker/nodes/Dockerfile
+    container_name: uat-node
+    hostname: uat-node
+    networks:
+      - ansible-net
+    expose:
+      - "22"
+      - "8083"
 
-  prod:
+  # --------------------------------------------------------------------------
+  # PROD Node
+  # --------------------------------------------------------------------------
+  prod-node:
     build:
-      context: ./ansible/nodes
-      args:
-        APP_USER: produsr
-    container_name: prod
-    ports:
-      - "2225:22"
+      context: .
+      dockerfile: docker/nodes/Dockerfile
+    container_name: prod-node
+    hostname: prod-node
+    networks:
+      - ansible-net
+    expose:
+      - "22"
+      - "8080"
+
+    # ------------------------------------------------------------------------
+    # OPTIONAL (Advanced):
+    # Enable ONLY if you want to experiment with dockerd inside container
+    # Requires docker_try_start_daemon=true in Ansible
+    # ------------------------------------------------------------------------
+    # privileged: true
+    # volumes:
+    #   - /var/lib/docker
+    #   - /sys/fs/cgroup:/sys/fs/cgroup:rw
+
+# --------------------------------------------------------------------------
+# Volumes
+# --------------------------------------------------------------------------
+volumes:
+  ansible_ssh:

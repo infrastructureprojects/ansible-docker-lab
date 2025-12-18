@@ -1,0 +1,26 @@
+- name: Ansible Lab - Container Nodes (No systemd)
+  hosts: all
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Show facts (container detection)
+      ansible.builtin.debug:
+        msg:
+          host: "{{ inventory_hostname }}"
+          virtualization_type: "{{ ansible_virtualization_type | default('unknown') }}"
+          env: "{{ env_name | default('na') }}"
+          container_mode: "{{ container_mode }}"
+
+  roles:
+    - users
+    - common
+    - packages
+    - users_extended
+    - filesystem
+    - nginx
+    - docker
+    - app_config
+    - cron_jobs
+    - monitoring_agent
+    - validation

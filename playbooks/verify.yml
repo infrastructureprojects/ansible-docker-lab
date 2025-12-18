@@ -1,0 +1,25 @@
+- name: Verify all nodes
+  hosts: all
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Verify nginx port listening (if nginx enabled)
+      ansible.builtin.shell: "ss -lntp | grep -E ':{{ nginx_port }}\\b' || true"
+      register: listen_check
+      changed_when: false
+      when: nginx_enable | bool
+
+    - name: Show listening output
+      ansible.builtin.debug:
+        var: listen_check.stdout_lines
+      when: nginx_enable | bool
+
+    - name: Verify app config exists
+      ansible.builtin.stat:
+        path: "{{ app_base_dir }}/app.conf"
+      register: app_conf
+
+    - name: Fail if config missing
+      ansible.builtin.fail:
+        msg: "Missing {{ app_base_dir }}/app.conf"
+      when: not app_conf.stat.exists

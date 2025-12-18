@@ -1,0 +1,4 @@
+monitoring_packages:
+  - procps
+  - htop
+  - sysstat

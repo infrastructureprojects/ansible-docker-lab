@@ -1,0 +1,4 @@
+app_dirs:
+  - "{{ app_base_dir }}"
+  - "{{ app_base_dir }}/logs"
+  - "{{ app_base_dir }}/data"

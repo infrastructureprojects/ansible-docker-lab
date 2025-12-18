@@ -1,73 +1,109 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# ============================================================================
+# 🔐 Bootstrap Passwordless SSH for Ansible Lab (Docker Containers)
+# ----------------------------------------------------------------------------
+# Purpose:
+#   - Generate SSH keypair on ansible-master (if not present)
+#   - Copy public key into dev / sit / uat / prod containers
+#   - Enable passwordless SSH for Ansible automation
+#
+# Designed for:
+#   - Docker-based target nodes
+#   - No systemd
+#   - CI/CD safe
+# ============================================================================
+
+set -euo pipefail
+
+# ----------------------------------------------------------------------------
+# Configuration
+# ----------------------------------------------------------------------------
+SSH_USER="${SSH_USER:-ansible}"
+SSH_PASSWORD="${SSH_PASSWORD:-ansible}"   # initial bootstrap only
+SSH_KEY_DIR="/root/.ssh"
+SSH_KEY="${SSH_KEY_DIR}/id_rsa"
+SSH_PUB="${SSH_KEY}.pub"
+
+NODES=(
+  "dev-node"
+  "sit-node"
+  "uat-node"
+  "prod-node"
+)
+
+# ----------------------------------------------------------------------------
+# Logging helpers
+# ----------------------------------------------------------------------------
+log()  { echo -e "\033[1;32m[INFO]\033[0m $*"; }
+warn() { echo -e "\033[1;33m[WARN]\033[0m $*"; }
+err()  { echo -e "\033[1;31m[ERROR]\033[0m $*"; }
+
+# ----------------------------------------------------------------------------
+# Ensure sshpass exists (required for first-time password auth)
+# ----------------------------------------------------------------------------
+if ! command -v sshpass >/dev/null 2>&1; then
+  log "Installing sshpass..."
+  apt-get update -y >/dev/null
+  apt-get install -y sshpass >/dev/null
+fi
+
+# ----------------------------------------------------------------------------
+# Create SSH keypair (idempotent)
+# ----------------------------------------------------------------------------
+log "Preparing SSH key directory..."
+mkdir -p "${SSH_KEY_DIR}"
+chmod 700 "${SSH_KEY_DIR}"
+
+if [[ ! -f "${SSH_KEY}" ]]; then
+  log "Generating SSH keypair..."
+  ssh-keygen -t rsa -b 4096 -N "" -f "${SSH_KEY}" >/dev/null
+else
+  log "SSH keypair already exists – skipping generation"
+fi
+
+PUBKEY_CONTENT="$(cat "${SSH_PUB}")"
+
+# ----------------------------------------------------------------------------
+# Copy public key to all nodes
+# ----------------------------------------------------------------------------
+for NODE in "${NODES[@]}"; do
+  log "Bootstrapping SSH access to ${NODE}..."
+
+  sshpass -p "${SSH_PASSWORD}" ssh \
+    -o StrictHostKeyChecking=no \
+    -o UserKnownHostsFile=/dev/null \
+    "${SSH_USER}@${NODE}" bash <<EOF
 set -e
 
-###############################################################################
-# 🔧 Configuration
-###############################################################################
-ANSIBLE_CONTAINER="ansible-master"
-TARGET_NODES=("dev" "sit" "uat" "prod")
+# Create .ssh directory
+mkdir -p /home/${SSH_USER}/.ssh
+chmod 700 /home/${SSH_USER}/.ssh
 
-###############################################################################
-# 🔁 Function: map container → SSH user
-###############################################################################
-get_ssh_user() {
-  case "$1" in
-    ansible-master) echo "ansible" ;;
-    dev)            echo "devusr" ;;
-    sit)            echo "situsr" ;;
-    uat)            echo "uatusr" ;;
-    prod)           echo "produsr" ;;
-    *)
-      echo "ERROR: Unknown container '$1'" >&2
-      exit 1
-      ;;
-  esac
-}
+# Create authorized_keys
+touch /home/${SSH_USER}/.ssh/authorized_keys
+chmod 600 /home/${SSH_USER}/.ssh/authorized_keys
 
-###############################################################################
-# 🔐 Bootstrap SSH for Ansible Master
-###############################################################################
-ANSIBLE_USER=$(get_ssh_user "${ANSIBLE_CONTAINER}")
-SSH_DIR="/home/${ANSIBLE_USER}/.ssh"
-KEY_PATH="${SSH_DIR}/id_rsa"
-PUB_KEY_PATH="${KEY_PATH}.pub"
+# Add public key if not present
+grep -qxF '${PUBKEY_CONTENT}' /home/${SSH_USER}/.ssh/authorized_keys || \
+  echo '${PUBKEY_CONTENT}' >> /home/${SSH_USER}/.ssh/authorized_keys
 
-echo "🔑 Bootstrapping SSH for ${ANSIBLE_CONTAINER} as user '${ANSIBLE_USER}'"
+# Fix ownership
+chown -R ${SSH_USER}:${SSH_USER} /home/${SSH_USER}/.ssh
+EOF
 
-docker exec "${ANSIBLE_CONTAINER}" bash -c "
-  mkdir -p ${SSH_DIR} &&
-  chmod 700 ${SSH_DIR} &&
-  if [ ! -f ${KEY_PATH} ]; then
-    ssh-keygen -t rsa -b 4096 -f ${KEY_PATH} -N ''
-  fi &&
-  chown -R ${ANSIBLE_USER}:${ANSIBLE_USER} ${SSH_DIR}
-"
-
-###############################################################################
-# 🔑 Copy public key to target nodes
-###############################################################################
-for NODE in "${TARGET_NODES[@]}"; do
-  TARGET_USER=$(get_ssh_user "${NODE}")
-  TARGET_SSH_DIR="/home/${TARGET_USER}/.ssh"
-
-  echo "➡️  Configuring SSH access: ${ANSIBLE_CONTAINER} → ${NODE} (${TARGET_USER})"
-
-  # Ensure .ssh exists on target node
-  docker exec "${NODE}" bash -c "
-    mkdir -p ${TARGET_SSH_DIR} &&
-    chmod 700 ${TARGET_SSH_DIR} &&
-    touch ${TARGET_SSH_DIR}/authorized_keys &&
-    chmod 600 ${TARGET_SSH_DIR}/authorized_keys &&
-    chown -R ${TARGET_USER}:${TARGET_USER} ${TARGET_SSH_DIR}
-  "
-
-  # Copy public key idempotently (no duplicates)
-  PUB_KEY=$(docker exec "${ANSIBLE_CONTAINER}" cat "${PUB_KEY_PATH}")
-
-  docker exec "${NODE}" bash -c "
-    grep -qxF '${PUB_KEY}' ${TARGET_SSH_DIR}/authorized_keys || \
-    echo '${PUB_KEY}' >> ${TARGET_SSH_DIR}/authorized_keys
-  "
+  log "Passwordless SSH configured for ${NODE}"
 done
 
-echo "✅ SSH bootstrap completed successfully"
+# ----------------------------------------------------------------------------
+# Final validation
+# ----------------------------------------------------------------------------
+log "Validating passwordless SSH connectivity..."
+
+for NODE in "${NODES[@]}"; do
+  ssh -o StrictHostKeyChecking=no \
+      -o UserKnownHostsFile=/dev/null \
+      "${SSH_USER}@${NODE}" "echo SSH OK from \$(hostname)" \
+      || err "SSH validation failed for ${NODE}"
+done
+
+log "🎉 SSH bootstrap completed successfully for all nodes!"

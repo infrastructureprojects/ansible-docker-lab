@@ -1,0 +1,31 @@
+- name: Install nginx
+  ansible.builtin.apt:
+    name: nginx
+    state: present
+    update_cache: true
+  when: nginx_enable | bool
+
+- name: Deploy nginx config (container-safe)
+  ansible.builtin.template:
+    src: default.conf.j2
+    dest: "{{ nginx_conf_path }}"
+    mode: "0644"
+  notify:
+    - nginx reload (container)
+  when: nginx_enable | bool
+
+- name: Start nginx if not running (no systemd)
+  ansible.builtin.shell: |
+    pgrep nginx >/dev/null 2>&1 && exit 0
+    nginx
+  args:
+    executable: /bin/bash
+  changed_when: false
+  when: nginx_enable | bool
+
+- name: Validate nginx is responding locally
+  ansible.builtin.shell: "curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:{{ nginx_listen_port }}"
+  register: nginx_http
+  changed_when: false
+  failed_when: nginx_http.stdout not in ['200']
+  when: nginx_enable | bool

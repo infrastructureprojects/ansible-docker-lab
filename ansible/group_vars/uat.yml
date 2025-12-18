@@ -1,2 +1,0 @@
-app_user: uatusr
-ansible_user: "{{ app_user }}"

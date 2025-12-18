@@ -1,0 +1,11 @@
+- name: Ensure ssh_user exists (base)
+  ansible.builtin.user:
+    name: "{{ ssh_user }}"
+    shell: "{{ users_shell }}"
+    create_home: "{{ users_create_home }}"
+
+- name: Ensure passwordless sudo for ssh_user
+  ansible.builtin.lineinfile:
+    path: /etc/sudoers
+    line: "{{ ssh_user }} ALL=(ALL) NOPASSWD:ALL"
+    validate: "visudo -cf %s"

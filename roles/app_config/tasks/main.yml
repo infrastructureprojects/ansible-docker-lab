@@ -1,0 +1,7 @@
+- name: Deploy application config
+  ansible.builtin.template:
+    src: app.conf.j2
+    dest: "{{ app_config_path }}"
+    owner: "{{ app_user }}"
+    group: "{{ app_user }}"
+    mode: "0644"

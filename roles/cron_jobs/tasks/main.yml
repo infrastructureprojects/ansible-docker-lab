@@ -1,0 +1,21 @@
+- name: Install cron
+  ansible.builtin.apt:
+    name: cron
+    state: present
+    update_cache: true
+
+- name: Start cron (container-safe)
+  ansible.builtin.shell: |
+    pgrep cron >/dev/null 2>&1 && exit 0
+    cron
+  args:
+    executable: /bin/bash
+  changed_when: false
+
+- name: Cleanup /tmp nightly
+  ansible.builtin.cron:
+    name: "cleanup tmp"
+    hour: "{{ cron_cleanup_hour }}"
+    minute: "{{ cron_cleanup_minute }}"
+    user: root
+    job: "rm -rf /tmp/*"

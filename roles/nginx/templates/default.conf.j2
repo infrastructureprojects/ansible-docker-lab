@@ -1,0 +1,8 @@
+server {
+  listen {{ nginx_listen_port }};
+  server_name {{ inventory_hostname }};
+
+  location / {
+    return 200 "Hello from {{ env_name | pretty_env }} ({{ inventory_hostname }})\n";
+  }
+}

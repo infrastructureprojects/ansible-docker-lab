@@ -1,7 +1,0 @@
-- name: Create app directory
-  file:
-    path: "/home/{{ app_user }}/{{ app_home_dir }}"
-    state: directory
-    owner: "{{ app_user }}"
-    group: "{{ app_user }}"
-    mode: '0777'

@@ -1,0 +1,2 @@
+packages_common: "{{ common_packages }}"
+packages_extra: []

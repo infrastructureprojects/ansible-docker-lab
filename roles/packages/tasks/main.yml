@@ -1,0 +1,5 @@
+- name: Install baseline packages
+  ansible.builtin.apt:
+    name: "{{ packages_common + (packages_extra | default([])) }}"
+    state: present
+    update_cache: true

@@ -1,0 +1,31 @@
+- name: Validate app directory exists
+  ansible.builtin.stat:
+    path: "{{ app_base_dir }}"
+  register: app_dir
+
+- name: Fail if app dir missing
+  ansible.builtin.fail:
+    msg: "Application base directory missing: {{ app_base_dir }}"
+  when: not app_dir.stat.exists
+
+- name: Validate app config exists
+  ansible.builtin.stat:
+    path: "{{ app_base_dir }}/app.conf"
+  register: app_conf
+
+- name: Fail if app config missing
+  ansible.builtin.fail:
+    msg: "Missing app.conf at {{ app_base_dir }}/app.conf"
+  when: not app_conf.stat.exists
+
+- name: Validate nginx running (if enabled)
+  ansible.builtin.shell: "pgrep nginx >/dev/null 2>&1"
+  register: nginx_running
+  changed_when: false
+  failed_when: nginx_enable | bool and nginx_running.rc != 0
+
+- name: Validate nginx http 200 (if enabled)
+  ansible.builtin.shell: "curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:{{ nginx_port }}"
+  register: nginx_http
+  changed_when: false
+  failed_when: nginx_enable | bool and nginx_http.stdout != "200"

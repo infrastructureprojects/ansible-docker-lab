@@ -1,2 +1,0 @@
-app_user: situsr
-ansible_user: "{{ app_user }}"

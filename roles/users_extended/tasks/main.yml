@@ -1,0 +1,14 @@
+- name: Create extended users
+  ansible.builtin.user:
+    name: "{{ item.name }}"
+    groups: "{{ item.groups }}"
+    shell: /bin/bash
+    create_home: true
+  loop: "{{ users_list }}"
+
+- name: Ensure passwordless sudo for extended users
+  ansible.builtin.lineinfile:
+    path: /etc/sudoers
+    line: "{{ item.name }} ALL=(ALL) NOPASSWD:ALL"
+    validate: "visudo -cf %s"
+  loop: "{{ users_list }}"

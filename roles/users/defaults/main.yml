@@ -1,0 +1,2 @@
+users_shell: /bin/bash
+users_create_home: true

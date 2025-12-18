@@ -1,0 +1,23 @@
+- name: Install monitoring packages
+  ansible.builtin.apt:
+    name: "{{ monitoring_packages }}"
+    state: present
+    update_cache: true
+
+- name: Simple health snapshot
+  ansible.builtin.shell: |
+    echo "==HOST=="
+    hostname
+    echo "==CPU/MEM=="
+    uptime
+    free -m || true
+    echo "==DISK=="
+    df -h || true
+  args:
+    executable: /bin/bash
+  register: health
+  changed_when: false
+
+- name: Print health snapshot
+  ansible.builtin.debug:
+    var: health.stdout_lines

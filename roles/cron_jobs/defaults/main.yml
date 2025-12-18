@@ -1,0 +1,2 @@
+cron_cleanup_hour: "2"
+cron_cleanup_minute: "0"

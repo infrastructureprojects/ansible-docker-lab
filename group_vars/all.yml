@@ -1,0 +1,17 @@
+ssh_user: ansible
+env_owner: devsecops
+app_user: appuser
+app_base_dir: /opt/app
+
+common_packages:
+  - curl
+  - wget
+  - vim
+  - ca-certificates
+  - net-tools
+  - iproute2
+
+# Container-safe behavior toggles
+container_mode: true
+nginx_enable: true
+docker_enable: true

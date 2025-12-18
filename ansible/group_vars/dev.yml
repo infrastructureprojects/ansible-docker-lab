@@ -1,2 +1,0 @@
-app_user: devusr
-ansible_user: "{{ app_user }}"

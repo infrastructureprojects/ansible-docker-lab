@@ -1,0 +1,17 @@
+- name: Ensure base directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - /opt
+    - /var/log/lab
+
+- name: Write lab metadata file
+  ansible.builtin.copy:
+    dest: /var/log/lab/lab-info.txt
+    content: |
+      env={{ env_name | default('na') }}
+      owner={{ env_owner | default('na') }}
+      host={{ inventory_hostname }}
+      time={{ ansible_date_time.iso8601 | default('na') }}

@@ -1,0 +1,3 @@
+docker_enable: true
+docker_install_cli_only: true
+docker_try_start_daemon: false   # set true only if you run privileged nodes

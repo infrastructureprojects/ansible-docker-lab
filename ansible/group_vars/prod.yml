@@ -1,3 +1,0 @@
-app_user: produsr
-ansible_user: "{{ app_user }}"
-
