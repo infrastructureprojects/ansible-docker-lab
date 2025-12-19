@@ -25,7 +25,11 @@
   failed_when: nginx_enable | bool and nginx_running.rc != 0
 
 - name: Validate nginx http 200 (if enabled)
-  ansible.builtin.shell: "curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:{{ nginx_port }}"
+  ansible.builtin.shell: >
+    curl -s -o /dev/null -w "%{http_code}"
+    http://127.0.0.1:{{ nginx_listen_port }}
   register: nginx_http
   changed_when: false
-  failed_when: nginx_enable | bool and nginx_http.stdout != "200"
+  failed_when: nginx_http.stdout != "200"
+  when: nginx_enable | bool
+

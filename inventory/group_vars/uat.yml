@@ -1,5 +1,4 @@
-env_name: uat
-app_user: uatuser
+app_user: "{{ ansible_user }}"
 nginx_enable: true
 nginx_listen_port: 8083
 app_base_dir: /opt/app

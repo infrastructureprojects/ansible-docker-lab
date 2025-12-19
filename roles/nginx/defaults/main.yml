@@ -1,3 +1,4 @@
-nginx_enable: true
-nginx_port: 80
+---
+nginx_enable: false
+nginx_listen_port: 80
 nginx_conf_path: /etc/nginx/conf.d/default.conf

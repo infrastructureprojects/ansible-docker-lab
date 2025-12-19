@@ -1,6 +1,7 @@
 ssh_user: ansible
-env_owner: devsecops
-app_user: appuser
+env_owner: platform-team
+env_name: "{{ group_names | difference(['all']) | first }}"
+app_user: "{{ ansible_user }}"
 app_base_dir: /opt/app
 
 common_packages:

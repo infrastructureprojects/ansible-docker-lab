@@ -22,10 +22,20 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV LANG=C.UTF-8
 ENV LC_ALL=C.UTF-8
 
-# -----------------------------------------------------------------------------
-# Install OS packages (root only at build time)
-# -----------------------------------------------------------------------------
-RUN apt-get update && apt-get install -y --no-install-recommends \
+
+# --------------------------------------------------------------------
+# Install base packages (APT-resilient)
+# --------------------------------------------------------------------
+RUN set -eux; \
+    rm -rf /var/lib/apt/lists/*; \
+    apt-get clean; \
+    \
+    apt-get update \
+      -o Acquire::Retries=5 \
+      -o Acquire::http::Timeout=30 \
+      -o Acquire::https::Timeout=30; \
+    \
+  apt-get install -y --no-install-recommends \
     python3 \
     python3-pip \
     python3-venv \
@@ -38,6 +48,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     vim \
     nano \
     less \
+    tree \
     iputils-ping \
     net-tools \
     ca-certificates \
@@ -45,8 +56,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     cron \
     unzip \
     jq \
-    sudo \
-    && rm -rf /var/lib/apt/lists/*
+    sudo; \
+    \
+    rm -rf /var/lib/apt/lists/*
 
 # -----------------------------------------------------------------------------
 # Install Ansible (pip-based)
@@ -96,9 +108,9 @@ RUN chown -R ansible:ansible /lab && \
 # -----------------------------------------------------------------------------
 # Ansible defaults (facts cache)
 # -----------------------------------------------------------------------------
-RUN mkdir -p /lab/.facts && \
-    chown -R ansible:ansible /lab/.facts && \
-    chmod 755 /lab/.facts
+RUN mkdir -p /tmp/ansible-facts && \
+    chown -R ansible:ansible /tmp/ansible-facts && \
+    chmod 777 /tmp/ansible-facts
 
 # -----------------------------------------------------------------------------
 # Build-time sanity checks

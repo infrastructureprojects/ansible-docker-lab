@@ -1,5 +1,4 @@
-env_name: sit
-app_user: situser
+app_user: "{{ ansible_user }}"
 nginx_enable: true
 nginx_listen_port: 8082
 app_base_dir: /opt/app

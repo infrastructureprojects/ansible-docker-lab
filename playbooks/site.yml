@@ -9,10 +9,10 @@
 #   - Roles confirm & configure, NOT create OS users
 # =============================================================================
 
-- name: Ansible Lab - Container Nodes
+- name: Ansible Lab - Container Nodes (Production-like)
   hosts: all
   gather_facts: true
-  become: false
+  become: true
 
   # ---------------------------------------------------------------------------
   # Pre-Tasks: Environment & Container Detection

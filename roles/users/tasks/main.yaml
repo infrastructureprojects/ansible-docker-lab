@@ -9,10 +9,13 @@
 # Design Principles:
 #   - Users are CREATED at Docker image build time (Dockerfile)
 #   - Ansible DOES NOT create or modify OS users in containers
-#   - No sudo / no become (Ansible connects as root)
+#   - Ansible connects as non-root user and escalates via sudo (become)
 #   - Fail fast if expected users are missing
 # =============================================================================
 
+# -----------------------------------------------------------------------------
+# Validate required variable
+# -----------------------------------------------------------------------------
 - name: Validate environment user variable is defined
   ansible.builtin.assert:
     that:
@@ -20,19 +23,36 @@
       - app_user | length > 0
     fail_msg: >
       app_user is not defined.
-      Ensure it is set in group_vars (dev/sit/uat/prod).
+      Ensure it is set in group_vars (dev/sit/uat/prod) or derived from ansible_user.
     success_msg: "Environment user '{{ app_user }}' is defined."
 
+# -----------------------------------------------------------------------------
+# Verify user exists (POSIX-safe)
+# -----------------------------------------------------------------------------
 - name: Verify environment user exists in container
-  ansible.builtin.command: "id {{ app_user }}"
+  ansible.builtin.command: "getent passwd {{ app_user }}"
   register: user_check
   changed_when: false
+  failed_when: user_check.rc != 0
 
+- name: Fail if environment user is missing
+  ansible.builtin.fail:
+    msg: >
+      User '{{ app_user }}' does not exist on {{ inventory_hostname }}.
+      Docker image is misconfigured.
+  when: user_check.rc != 0
+
+# -----------------------------------------------------------------------------
+# Debug user details (safe parsing)
+# -----------------------------------------------------------------------------
 - name: Debug environment user details
   ansible.builtin.debug:
     msg:
       user: "{{ app_user }}"
-      uid: "{{ user_check.stdout.split()[0] }}"
+      uid: "{{ user_check.stdout.split(':')[2] }}"
+      gid: "{{ user_check.stdout.split(':')[3] }}"
+      home: "{{ user_check.stdout.split(':')[5] }}"
+      shell: "{{ user_check.stdout.split(':')[6] }}"
       host: "{{ inventory_hostname }}"
 
 # -----------------------------------------------------------------------------

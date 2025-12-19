@@ -1,5 +1,4 @@
-env_name: dev
-app_user: devuser
+app_user: "{{ ansible_user }}"
 nginx_enable: true
 nginx_listen_port: 8081
 app_base_dir: /opt/app
