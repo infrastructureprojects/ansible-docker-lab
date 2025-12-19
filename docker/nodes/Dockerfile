@@ -67,6 +67,12 @@ RUN set -eux; \
     rm -rf /var/lib/apt/lists/*
 
 # --------------------------------------------------------------------
+# Prepare Ansible remote_tmp directory (required for become)
+# --------------------------------------------------------------------
+RUN mkdir -p /tmp/.ansible/tmp && \
+    chmod 1777 /tmp/.ansible/tmp
+
+# --------------------------------------------------------------------
 # SSH runtime directory
 # --------------------------------------------------------------------
 RUN mkdir -p /var/run/sshd
